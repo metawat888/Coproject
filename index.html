@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ai Lab - Interactive Header</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@600&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050510;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .header-container {
+            position: relative;
+            width: 100%;
+            max-width: 1400px;
+            height: 50px; /* ปรับลดความสูงจาก 100px เป็น 50px */
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.15),
+                        inset 0 0 0 1px rgba(0, 255, 255, 0.3);
+            perspective: 1000px;
+            cursor: crosshair;
+        }
+
+        .bg-layer {
+            position: absolute;
+            top: 0; left: 0; 
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 15, 0.7) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255), rgba(255,255,255,0) 50%);
+            background-size: 100% 4px;
+            opacity: 0.05;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        .text-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3;
+            pointer-events: none;
+            transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            will-change: transform;
+            transform-style: preserve-3d;
+        }
+
+        h1 {
+            position: relative; /* เพิ่มเพื่อเป็นจุดอ้างอิงให้เส้นแสง */
+            margin: 0;
+            font-family: 'Chakra Petch', sans-serif; /* เปลี่ยนเป็นฟอนต์แนว Sci-Fi */
+            font-size: 1rem; /* ลดขนาดลงอีกเพื่อให้มั่นใจว่าไม่ตกขอบ */
+            line-height: 1;
+            font-weight: 700; /* ปรับความหนาให้พอดีกับฟอนต์ใหม่ */
+            color: #ffffff;
+            letter-spacing: 3px; /* ลดระยะห่างตัวอักษรลงเพื่อประหยัดพื้นที่แนวนอน */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9); /* เอาเงาเรืองแสงสีส้มกว้างๆ ออก เหลือแค่เงาดำให้อ่านง่าย */
+            transform: translateZ(50px);
+            white-space: nowrap; /* บังคับให้อยู่บรรทัดเดียวไม่ตกขอบ */
+        }
+        
+        /* เอฟเฟกต์ตัวหนังสือไหลเป็นคลื่นและเปลี่ยนสี */
+        @keyframes textWave {
+            0%, 15%, 100% { 
+                transform: translateY(0) scale(1); 
+                color: #ffffff;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+            }
+            7.5% { /* จุดที่กระโดดและเปลี่ยนสีสั้นๆ เพื่อให้เป็นทีละตัวอักษร */
+                transform: translateY(-10px) scale(1.1); 
+                color: #ffaa00; /* เปลี่ยนสีตัวอักษรเป็นสีส้มสว่าง */
+                text-shadow: 
+                    0 5px 10px rgba(255, 170, 0, 0.6), /* แสงสีส้มกระพริบอ่อนๆ เฉพาะตอนตัวหนังสือเด้ง */
+                    2px 2px 4px rgba(0, 0, 0, 0.9);
+            }
+        }
+
+        .wave-char {
+            display: inline-block;
+            animation: textWave 3s linear infinite; /* ยืดเวลาออกให้คลื่นวิ่งได้จบประโยค */
+            will-change: transform;
+        }
+        
+        @media (max-width: 1400px) {
+            .header-container { border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-container" id="interactive-header">
+        <canvas id="bg-canvas" class="bg-layer"></canvas>
+        <div class="overlay"></div>
+        <div class="scanlines"></div>
+        
+        <div class="text-container" id="text-layer">
+            <h1>สนใจร่วม Project : <i class="fa-brands fa-facebook"></i> Metawat Phongsaphang &nbsp;&nbsp;&nbsp; <i class="fa-brands fa-line"></i> @metawat &nbsp;&nbsp;&nbsp; <i class="fa-solid fa-phone"></i> 0910640491</h1>
+        </div>
+    </div>
+
+    <script>
+        const header = document.getElementById('interactive-header');
+        const textLayer = document.getElementById('text-layer');
+        const canvas = document.getElementById('bg-canvas');
+        
+        // แยกตัวอักษรเพื่อทำเอฟเฟกต์คลื่น (รองรับ HTML Node เช่น Icon)
+        const h1Element = document.querySelector('h1');
+        const originalNodes = Array.from(h1Element.childNodes);
+        h1Element.innerHTML = ''; // ล้างข้อความเดิมออก
+        
+        let charIndex = 0;
+        originalNodes.forEach(node => {
+            if (node.nodeType === 3) { // ถ้าเป็นข้อความปกติ (Text Node)
+                node.textContent.split('').forEach(char => {
+                    const span = document.createElement('span');
+                    if (char === ' ') {
+                        span.innerHTML = '&nbsp;';
+                    } else {
+                        span.innerText = char;
+                        span.className = 'wave-char';
+                        span.style.animationDelay = `${charIndex * 0.1}s`; 
+                    }
+                    h1Element.appendChild(span);
+                    charIndex++;
+                });
+            } else { // ถ้าเป็น HTML Element (เช่น แท็ก <i> ของ FontAwesome)
+                const wrapper = document.createElement('span');
+                wrapper.className = 'wave-char';
+                wrapper.style.animationDelay = `${charIndex * 0.1}s`;
+                wrapper.style.display = 'inline-block';
+                wrapper.appendChild(node.cloneNode(true));
+                h1Element.appendChild(wrapper);
+                charIndex++;
+            }
+        });
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#020208');
+
+        // Setup camera
+        const camera = new THREE.PerspectiveCamera(75, header.clientWidth / header.clientHeight, 0.1, 1000);
+        camera.position.z = 15;
+
+        // Setup renderer with realistic settings
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setSize(header.clientWidth, header.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true; 
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; 
+        renderer.toneMappingExposure = 1.2; 
+        
+        const cubes = [];
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        
+        // Materials with varied reflectiveness and emissive properties
+        const materials = [
+            new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x003333, roughness: 0.1, metalness: 0.9 }), 
+            new THREE.MeshStandardMaterial({ color: 0x0055ff, emissive: 0x001133, roughness: 0.2, metalness: 0.85 }), 
+            new THREE.MeshStandardMaterial({ color: 0x090033, emissive: 0x020011, roughness: 0.3, metalness: 0.7 })  
+        ];
+
+        // Create 120 cubes distributed widely to prevent sudden disappearing
+        for (let i = 0; i < 120; i++) {
+            const material = materials[Math.floor(Math.random() * materials.length)];
+            const cube = new THREE.Mesh(geometry, material);
+            cube.castShadow = true;    
+            cube.receiveShadow = true; 
+            
+            // Random initial positions spread across a wide area
+            cube.position.x = (Math.random() - 0.5) * 160; // Wide X
+            cube.position.y = (Math.random() - 0.5) * 60;  // Wide Y
+            cube.position.z = (Math.random() - 0.5) * 60 - 10;
+            
+            cube.rotation.x = Math.random() * Math.PI;
+            cube.rotation.y = Math.random() * Math.PI;
+            
+            const scale = Math.random() * 1.5 + 0.5;
+            cube.scale.set(scale, scale, scale);
+
+            // Random varied speeds and rotation speeds
+            const speedMultiplier = Math.random() * 0.12 + 0.02; 
+            
+            cube.userData = {
+                vx: (Math.random() - 0.5) * speedMultiplier,
+                vy: (Math.random() - 0.5) * speedMultiplier,
+                vz: (Math.random() - 0.5) * speedMultiplier,
+                rx: (Math.random() - 0.5) * 0.05,
+                ry: (Math.random() - 0.5) * 0.05
+            };
+            
+            scene.add(cube);
+            cubes.push(cube);
+        }
+
+        /* Anime Fire Sparks (อนุภาคไฟแบบเกล็ดเปลวเพลิงอนิเมะ) */
+        const fireCubes = [];
+        // ใช้ TetrahedronGeometry เพื่อให้เป็นรูปทรงเหลี่ยมๆ แบบเกล็ดไฟเวทมนตร์ในอนิเมะ
+        const fireGeo = new THREE.TetrahedronGeometry(1.2, 0); 
+        const fireMats = [
+            new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, opacity: 1 }), // แกนกลางสว่างจ้า (Core)
+            new THREE.MeshBasicMaterial({ color: 0xffaa00, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9 }), // สีเหลืองทอง
+            new THREE.MeshBasicMaterial({ color: 0xff3300, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.7 })  // สีแดงส้มขอบเปลวไฟ
+        ];
+
+        // เพิ่มจำนวนสะเก็ดไฟและปรับแต่งรูปลักษณ์
+        for (let i = 0; i < 90; i++) {
+            const mat = fireMats[Math.floor(Math.random() * fireMats.length)];
+            const spark = new THREE.Mesh(fireGeo, mat);
+            
+            // กระจายประกายไฟให้อยู่รอบๆ ข้อความ
+            spark.position.x = (Math.random() - 0.5) * 100;
+            spark.position.y = (Math.random() - 0.5) * 40 - 20;
+            spark.position.z = (Math.random() - 0.5) * 20 + 5; 
+            
+            const baseScale = Math.random() * 0.8 + 0.2;
+            spark.scale.set(baseScale, baseScale, baseScale);
+
+            spark.userData = {
+                baseScale: baseScale,
+                life: Math.random() * 100, // ค่าเริ่มต้นสำหรับคลื่น Sine wave เพื่อการกระพริบ
+                vy: Math.random() * 0.2 + 0.05, // ลอยขึ้น
+                vx: (Math.random() - 0.5) * 0.15, // ส่ายไปมา
+                vrx: (Math.random() - 0.5) * 0.1, // หมุนควงแบบอิสระ
+                vry: (Math.random() - 0.5) * 0.1,
+                vrz: (Math.random() - 0.5) * 0.1,
+                phaseSpeed: Math.random() * 0.05 + 0.02
+            };
+            
+            scene.add(spark);
+            fireCubes.push(spark);
+        }
+
+        const ambientLight = new THREE.AmbientLight(0x0f172a, 1.0);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        mainLight.position.set(15, 20, 15);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 1024; 
+        mainLight.shadow.mapSize.height = 1024;
+        mainLight.shadow.camera.near = 0.5;
+        mainLight.shadow.camera.far = 150;
+        mainLight.shadow.camera.left = -50;
+        mainLight.shadow.camera.right = 50;
+        mainLight.shadow.camera.top = 50;
+        mainLight.shadow.camera.bottom = -50;
+        mainLight.shadow.bias = -0.001;
+        scene.add(mainLight);
+
+        // Neon Glows
+        const cyanGlow = new THREE.PointLight(0x00ffff, 4, 60);
+        cyanGlow.position.set(20, -5, 10);
+        scene.add(cyanGlow);
+
+        const magentaGlow = new THREE.PointLight(0xff00ff, 3, 60);
+        magentaGlow.position.set(-25, 10, 5);
+        scene.add(magentaGlow);
+
+        const bottomLight = new THREE.DirectionalLight(0x0055ff, 1.5);
+        bottomLight.position.set(0, -20, 0);
+        scene.add(bottomLight);
+
+        let targetX = 0;
+        let targetY = 0;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update physics for each cube
+            cubes.forEach((cube) => {
+                cube.rotation.x += cube.userData.rx;
+                cube.rotation.y += cube.userData.ry;
+
+                cube.position.x += cube.userData.vx;
+                cube.position.y += cube.userData.vy;
+                cube.position.z += cube.userData.vz;
+
+                // Boundary Wrapping - Very wide so they don't pop out in view
+                if (cube.position.x > 85) cube.position.x = -85;
+                if (cube.position.x < -85) cube.position.x = 85;
+                if (cube.position.y > 40) cube.position.y = -40;
+                if (cube.position.y < -40) cube.position.y = 40;
+                if (cube.position.z > 30) cube.position.z = -50;
+                if (cube.position.z < -50) cube.position.z = 30;
+            });
+
+            // อัปเดตอนุภาคประกายไฟ (เกล็ดเปลวเพลิงอนิเมะ)
+            fireCubes.forEach((spark) => {
+                spark.userData.life += spark.userData.phaseSpeed;
+                spark.position.y += spark.userData.vy;
+                
+                // ส่ายซ้ายขวาตามคลื่น Sine ให้เหมือนการพริ้วของเปลวไฟตามลม
+                spark.position.x += spark.userData.vx + Math.sin(spark.userData.life) * 0.08; 
+                
+                // หมุนควงแบบไร้ทิศทางเหมือนเกล็ดไฟ
+                spark.rotation.x += spark.userData.vrx;
+                spark.rotation.y += spark.userData.vry;
+                spark.rotation.z += spark.userData.vrz;
+
+                // ทำให้เกล็ดไฟมีขนาดกระพริบ (หดและขยาย) เปลี่ยนขนาดไปมาเหมือนพลังงานที่ไม่นิ่ง
+                const pulse = 0.6 + 0.4 * Math.sin(spark.userData.life * 4);
+                spark.scale.set(
+                    spark.userData.baseScale * pulse,
+                    spark.userData.baseScale * pulse,
+                    spark.userData.baseScale * pulse
+                );
+
+                // เมื่อลอยเลยขอบบน ให้วนกลับมาเกิดใหม่ด้านล่างแบบสุ่มตำแหน่ง
+                if (spark.position.y > 25) {
+                    spark.position.y = -25;
+                    spark.position.x = (Math.random() - 0.5) * 100;
+                    spark.position.z = (Math.random() - 0.5) * 20 + 5; 
+                }
+            });
+
+            // Smoothly move camera based on mouse
+            camera.position.x += (targetX * 8 - camera.position.x) * 0.05;
+            camera.position.y += (-targetY * 8 - camera.position.y) * 0.05;
+            camera.lookAt(scene.position);
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            if (header.clientWidth > 0 && header.clientHeight > 0) {
+                camera.aspect = header.clientWidth / header.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(header.clientWidth, header.clientHeight);
+            }
+        });
+
+        window.onload = function () {
+            animate();
+        };
+
+        // Mouse Parallax Effect for Camera and Text
+        header.addEventListener('mousemove', (e) => {
+            const rect = header.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            const moveX = (x - centerX) / centerX;
+            const moveY = (y - centerY) / centerY;
+
+            targetX = moveX;
+            targetY = moveY;
+
+            // Small 3D tilt for the text
+            const textMoveAmt = 15; 
+            const textRotateAmt = 5; 
+            
+            textLayer.style.transform = `
+                translate(${moveX * textMoveAmt}px, ${moveY * textMoveAmt}px) 
+                rotateX(${moveY * -textRotateAmt}deg) 
+                rotateY(${moveX * textRotateAmt}deg)
+            `;
+        });
+
+        // Reset positions on mouse leave
+        header.addEventListener('mouseleave', () => {
+            targetX = 0;
+            targetY = 0;
+            textLayer.style.transform = `translate(0px, 0px) rotateX(0deg) rotateY(0deg)`;
+        });
+    </script>
+</body>
+</html>
